@@ -215,3 +215,8 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .dp { min-width: 100%; }
 .book--gone .book__price { visibility: hidden; }
+
+/* Tooltip giải thích ô khi rê chuột: nằm nổi, không đẩy bố cục */
+.dp-tip { position: fixed; z-index: 20; max-width: 380px; background: var(--ink); color: var(--paper); padding: 10px 12px; font-size: 13px; line-height: 1.5; box-shadow: 4px 4px 0 rgba(43, 29, 20, 0.35); pointer-events: none; }
+.dp-tip b { font-family: var(--font-num); color: var(--gold); display: block; margin-bottom: 2px; }
+.dp-tip[hidden] { display: none; }

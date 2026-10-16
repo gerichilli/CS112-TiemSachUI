@@ -1,4 +1,26 @@
+import { useRef, useState } from 'react';
 import { EXAMPLES, LIMITS, bookColor, toForm } from '../examples.js';
+
+/**
+ * Đọc nội dung file theo đúng định dạng đề Wecode:
+ *   dòng 1: n x
+ *   dòng 2: n số h[i]
+ *   dòng 3: n số s[i]
+ * Các số chỉ cần cách nhau bởi khoảng trắng hoặc xuống dòng.
+ */
+export function parseInputText(text) {
+  const tokens = text.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length < 2) return { error: 'File phải có ít nhất 2 số n và x ở dòng đầu.' };
+  if (!tokens.every((t) => /^-?\d+$/.test(t))) return { error: 'File chỉ được chứa số nguyên.' };
+  const nums = tokens.map(Number);
+  const [n, x] = nums;
+  if (n < 1 || n > LIMITS.nMax) return { error: `n = ${n} nằm ngoài giới hạn của giao diện (1 ≤ n ≤ ${LIMITS.nMax}).` };
+  const need = 2 + 2 * n;
+  if (nums.length < need) return { error: `Với n = ${n}, file cần ${need} số nhưng chỉ có ${nums.length}.` };
+  if (nums.length > need) return { error: `Với n = ${n}, file cần ${need} số nhưng có tới ${nums.length}.` };
+  const h = nums.slice(2, 2 + n), s = nums.slice(2 + n);
+  return { data: { n, x, h, s } };
+}
 
 // Kiểm tra một ô nhập: phải là số nguyên trong [min, max]
 function checkInt(text, min, max) {
@@ -31,6 +53,19 @@ export function validate(form) {
 
 export default function InputScene({ form, setForm, onStart }) {
   const v = validate(form);
+  const fileRef = useRef(null);
+  const [fileMsg, setFileMsg] = useState(null); // { ok, text }
+
+  // Nạp dữ liệu từ file .txt / .inp
+  async function onFile(e) {
+    const file = e.target.files[0];
+    e.target.value = ''; // cho phép chọn lại cùng một file
+    if (!file) return;
+    const r = parseInputText(await file.text());
+    if (r.error) { setFileMsg({ ok: false, text: `Không đọc được "${file.name}": ${r.error}` }); return; }
+    setForm({ ...toForm(r.data), mode: form.mode });
+    setFileMsg({ ok: true, text: `Đã nạp "${file.name}": ${r.data.n} cuốn sách, x = ${r.data.x}.` });
+  }
   const update = (patch) => setForm({ ...form, ...patch });
 
   // Đổi n thì danh sách sách tự thêm hoặc bớt dòng cho khớp
@@ -129,9 +164,14 @@ export default function InputScene({ form, setForm, onStart }) {
           <span className="muted">Nạp nhanh:</span>
           {EXAMPLES.map((ex, i) => (
             <button key={i} type="button" className="btn"
-              onClick={() => setForm({ ...toForm(ex), mode: form.mode })}>Ví dụ {i + 1}</button>
+              onClick={() => { setForm({ ...toForm(ex), mode: form.mode }); setFileMsg(null); }}>Ví dụ {i + 1}</button>
           ))}
+          <button type="button" className="btn" onClick={() => fileRef.current.click()}>Mở file .txt</button>
+          <input ref={fileRef} type="file" accept=".txt,.inp,text/plain" hidden onChange={onFile} />
         </div>
+        {fileMsg
+          ? <span className={fileMsg.ok ? 'hint' : 'error'} role="status">{fileMsg.text}</span>
+          : <span className="hint">File theo định dạng đề: dòng 1 là n x, dòng 2 là giá các cuốn, dòng 3 là số trang các cuốn.</span>}
 
         <fieldset className="mode">
           <legend>Chế độ</legend>

@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef } from 'react';
 
 // Số thứ tự bước của ô m[i][j] (mục 4.4.2): steps[0] là 'init'
 export const buocCuaO = (i, j, x) => 1 + (i - 1) * x + (j - 1);
@@ -34,7 +34,8 @@ const Row = memo(function Row({ i, label, values, visible, marks, rowCur }) {
 
 export default function DPTable({ m, h, s, n, x, steps, k, mode, firstTrace }) {
   const boxRef = useRef(null);
-  const [hv, setHv] = useState(null); // ô đang rê chuột { i, j }
+  const tipRef = useRef(null);       // tooltip hiển thị cách tính ô
+  const hvCells = useRef([]);        // các ô đang được tô khi rê chuột
   const step = steps[k];
 
   // ---- Số ô hiện ở mỗi dòng (cảnh Cân nhắc che các ô chưa tới lượt) ----
@@ -69,30 +70,57 @@ export default function DPTable({ m, h, s, n, x, steps, k, mode, firstTrace }) {
     }
   }
 
-  // ---- Rê chuột: tìm bước 'fill' của ô để giải thích và tô ô phụ thuộc ----
-  let hoverTitle = 'Rê chuột vào một ô';
-  let hoverText = 'để xem ô đó được tính như thế nào (viền đen: ô đang trỏ, viền nâu: ô phía trên, viền xanh: ô lùi trái h[i] cột).';
-  if (hv) {
-    const { i, j } = hv;
-    if (!isVisible(i, j)) { hoverTitle = `m[${i}][${j}]`; hoverText = 'Ô này chưa được tính ở bước hiện tại.'; }
-    else if (i === 0) { hoverTitle = `m[0][${j}] = 0`; hoverText = 'Trường hợp cơ sở: chưa xét cuốn sách nào nên không có trang nào.'; }
-    else if (j === 0) { hoverTitle = `m[${i}][0] = 0`; hoverText = 'Trường hợp cơ sở: có 0 tiền nên không mua được cuốn nào.'; }
-    else {
-      const b = steps[buocCuaO(i, j, x)];
-      hoverTitle = `m[${i}][${j}] = ${b.value}`;
-      hoverText = b.message;
-      marks[i].push(`${j}:hv-self`);
-      marks[b.oTren.i].push(`${b.oTren.j}:hv-tren`);
-      if (b.oTrai) marks[b.oTrai.i].push(`${b.oTrai.j}:hv-trai`);
-    }
+  // ---- Rê chuột: tooltip giải thích cách tính ô ----
+  // Không dùng state của React để tránh vẽ lại bảng mỗi lần rê chuột (gây giật).
+  // Thay vào đó thêm/bỏ class trực tiếp trên các ô và cập nhật nội dung tooltip.
+  function explain(i, j) {
+    if (!isVisible(i, j)) return { title: `m[${i}][${j}]`, text: 'Ô này chưa được tính ở bước hiện tại.' };
+    if (i === 0) return { title: `m[0][${j}] = 0`, text: 'Trường hợp cơ sở: chưa xét cuốn sách nào nên không có trang nào.' };
+    if (j === 0) return { title: `m[${i}][0] = 0`, text: 'Trường hợp cơ sở: có 0 tiền nên không mua được cuốn nào.' };
+    const b = steps[buocCuaO(i, j, x)];
+    return { title: `m[${i}][${j}] = ${b.value}`, text: b.message, step: b };
+  }
+
+  function clearHover() {
+    for (const [el, cls] of hvCells.current) el.classList.remove(cls);
+    hvCells.current = [];
+    if (tipRef.current) tipRef.current.hidden = true;
+  }
+
+  function mark(i, j, cls) {
+    const el = boxRef.current.querySelector(`td[data-i="${i}"][data-j="${j}"]`);
+    if (el) { el.classList.add(cls); hvCells.current.push([el, cls]); }
   }
 
   function onOver(e) {
     const td = e.target.closest('td[data-j]');
     if (!td) return;
+    if (hvCells.current.length && hvCells.current[0][0] === td) return; // vẫn là ô cũ
+    clearHover();
     const i = Number(td.dataset.i), j = Number(td.dataset.j);
-    if (!hv || hv.i !== i || hv.j !== j) setHv({ i, j });
+    const info = explain(i, j);
+    td.classList.add('hv-self'); hvCells.current.push([td, 'hv-self']);
+    if (info.step) {
+      mark(info.step.oTren.i, info.step.oTren.j, 'hv-tren');
+      if (info.step.oTrai) mark(info.step.oTrai.i, info.step.oTrai.j, 'hv-trai');
+    }
+    const tip = tipRef.current;
+    tip.querySelector('b').textContent = info.title;
+    tip.querySelector('span').textContent = info.text;
+    tip.hidden = false;
+    // Đặt tooltip ngay dưới ô; nếu sát mép phải/dưới màn hình thì đẩy vào trong
+    const r = td.getBoundingClientRect();
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    let left = r.left;
+    let top = r.bottom + 6;
+    if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
+    if (top + h > window.innerHeight - 8) top = r.top - h - 6;
+    tip.style.left = `${Math.max(8, left)}px`;
+    tip.style.top = `${Math.max(8, top)}px`;
   }
+
+  // Đổi bước hoặc cuộn bảng thì ẩn tooltip cũ
+  useEffect(() => { clearHover(); }, [k, mode]);
 
   // ---- Tự cuộn để ô đang xét luôn nằm trong khung ----
   useEffect(() => {
@@ -117,12 +145,12 @@ export default function DPTable({ m, h, s, n, x, steps, k, mode, firstTrace }) {
 
   return (
     <>
-      <div className="dp-box" ref={boxRef}>
+      <div className="dp-box" ref={boxRef} onScroll={clearHover}>
         <table className="dp">
           <thead>
             <tr><th className="dp__corner" scope="col">i \ j</th>{cols}</tr>
           </thead>
-          <tbody onMouseOver={onOver} onMouseLeave={() => setHv(null)}>
+          <tbody onMouseOver={onOver} onMouseLeave={clearHover}>
             {m.map((row, i) => (
               <Row
                 key={i}
@@ -137,7 +165,8 @@ export default function DPTable({ m, h, s, n, x, steps, k, mode, firstTrace }) {
           </tbody>
         </table>
       </div>
-      <div className="hover-info" aria-live="polite"><b>{hoverTitle}</b> {hoverText}</div>
+      <div className="dp-tip" ref={tipRef} hidden role="tooltip"><b /> <span /></div>
+      <p className="muted" style={{ margin: 0 }}>Rê chuột vào một ô để xem ô đó được tính như thế nào (viền đen: ô đang trỏ, viền nâu đứt: ô phía trên, viền xanh đứt: ô lùi trái h[i] cột).</p>
     </>
   );
 }
