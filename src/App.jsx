@@ -1,122 +1,101 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect, useState } from 'react';
+import { TaoCacBuoc } from './algorithms/knapsack.js';
+import Header from './components/Header.jsx';
+import InputScene from './components/InputScene.jsx';
+import ConsiderScene from './components/ConsiderScene.jsx';
+import CheckoutScene from './components/CheckoutScene.jsx';
+import StepControls from './components/StepControls.jsx';
+import { EXAMPLES, toForm } from './examples.js';
+import './styles.css';
 
-function App() {
-  const [count, setCount] = useState(0)
+// Thời gian chờ giữa 2 bước khi tự chạy, theo mức tốc độ 1..5 (ms)
+const DELAYS = [0, 1200, 700, 350, 120, 30];
+
+export default function App() {
+  const [form, setForm] = useState(() => toForm(EXAMPLES[0]));
+  const [data, setData] = useState(null);     // { n, x, h, s } đã kiểm tra hợp lệ
+  const [result, setResult] = useState(null); // { m, steps } từ TaoCacBuoc
+  const [k, setK] = useState(0);              // vị trí bước hiện tại
+  const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState(3);
+
+  const steps = result ? result.steps : [];
+  const last = steps.length - 1;
+  const step = steps[k];
+  const scene = !result ? 'input' : (step.phase === 'init' || step.phase === 'fill' ? 'consider' : 'checkout');
+  const firstTrace = data ? 1 + data.n * data.x : 0;
+
+  // Bấm "Bước vào tiệm"
+  function start(parsed, mode) {
+    const r = TaoCacBuoc(parsed.h, parsed.s, parsed.n, parsed.x);
+    setData(parsed);
+    setResult(r);
+    setK(mode === 'result' ? r.steps.length - 1 : 0);
+    setPlaying(false);
+  }
+
+  function backToInput() {
+    setResult(null);
+    setData(null);
+    setPlaying(false);
+  }
+
+  const go = (to) => setK(Math.max(0, Math.min(last, to)));
+
+  // "Xét xong cuốn này": nhảy tới ô cuối dòng i (m[i][x]); nếu đang ở đó thì sang dòng sau
+  function finishBook() {
+    if (!step || step.phase === 'trace' || step.phase === 'done') return;
+    const { n, x } = data;
+    const i = step.phase === 'init' ? 1 : step.i;
+    const endOfRow = (r) => 1 + (r - 1) * x + (x - 1);
+    let target = endOfRow(i);
+    if (k >= target) target = i < n ? endOfRow(i + 1) : firstTrace;
+    go(target);
+  }
+
+  // Tự chạy
+  useEffect(() => {
+    if (!playing) return undefined;
+    if (k >= last) { setPlaying(false); return undefined; }
+    const t = setTimeout(() => setK((v) => Math.min(last, v + 1)), DELAYS[speed]);
+    return () => clearTimeout(t);
+  }, [playing, k, speed, last]);
+
+  // Phím mũi tên trái/phải để lùi/tới (khi không gõ trong ô nhập)
+  useEffect(() => {
+    if (!result) return undefined;
+    const onKey = (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      if (e.key === 'ArrowRight') { e.preventDefault(); setK((v) => Math.min(last, v + 1)); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); setK((v) => Math.max(0, v - 1)); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [result, last]);
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app">
+      <Header scene={scene} data={data} onRestart={backToInput} />
 
-      <div className="ticks"></div>
+      {scene === 'input' && <InputScene form={form} setForm={setForm} onStart={start} />}
+      {scene === 'consider' && <ConsiderScene data={data} result={result} k={k} />}
+      {scene === 'checkout' && <CheckoutScene data={data} result={result} k={k} firstTrace={firstTrace} onRestart={backToInput} />}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {scene !== 'input' && (
+        <StepControls
+          k={k}
+          last={last}
+          step={step}
+          data={data}
+          firstTrace={firstTrace}
+          playing={playing}
+          speed={speed}
+          onGo={go}
+          onTogglePlay={() => setPlaying((p) => !p)}
+          onSpeed={setSpeed}
+          onFinishBook={finishBook}
+        />
+      )}
+    </div>
+  );
 }
-
-export default App
