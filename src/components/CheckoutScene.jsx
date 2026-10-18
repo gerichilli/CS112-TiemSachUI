@@ -3,7 +3,7 @@ import { WalletReal } from './Wallet.jsx';
 import DPTable from './DPTable.jsx';
 
 // Cảnh 3: Thanh toán (truy vết + Output)
-export default function CheckoutScene({ data, result, k, firstTrace, onRestart }) {
+export default function CheckoutScene({ data, result, k, firstTrace, onRestart, onCompare }) {
   const { n, x, h, s } = data;
   const { m, steps } = result;
   const done = steps[k].phase === 'done';
@@ -63,8 +63,8 @@ export default function CheckoutScene({ data, result, k, firstTrace, onRestart }
               ))}
             </div>
             <div className="receipt__rule" />
-            <div className="receipt__row receipt__row--total"><span>Tổng</span><span>{totalPrice}</span><span>{totalPages}</span></div>
-            <div className="receipt__row"><span>Tiền thừa</span><span /><span>{x - totalPrice}</span></div>
+            <div className="receipt__row receipt__row--total"><span>{done ? 'Tổng' : 'Tạm tính'}</span><span>{totalPrice}</span><span>{totalPages}</span></div>
+            <div className="receipt__row"><span>{done ? 'Tiền thừa' : 'Còn trong ví'}</span><span /><span>{x - totalPrice}</span></div>
             <div className="receipt__rule" />
             {done ? (
               <>
@@ -75,6 +75,7 @@ export default function CheckoutScene({ data, result, k, firstTrace, onRestart }
               <span className="receipt__pending">Đang truy vết, hóa đơn sẽ hoàn tất ở bước cuối.</span>
             )}
           </div>
+          <button type="button" className="btn" style={{ minHeight: 52 }} onClick={onCompare}>So sánh với đệ quy top-down</button>
           <button type="button" className="btn btn--primary" onClick={onRestart}>Vào tiệm lần nữa</button>
         </section>
       </div>

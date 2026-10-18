@@ -5,6 +5,7 @@ import InputScene from './components/InputScene.jsx';
 import ConsiderScene from './components/ConsiderScene.jsx';
 import CheckoutScene from './components/CheckoutScene.jsx';
 import StepControls from './components/StepControls.jsx';
+import CompareScene from './components/CompareScene.jsx';
 import { EXAMPLES, toForm } from './examples.js';
 import './styles.css';
 
@@ -18,6 +19,7 @@ export default function App() {
   const [k, setK] = useState(0);              // vị trí bước hiện tại
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(3);
+  const [compare, setCompare] = useState(false); // màn hình so sánh với đệ quy có nhớ
 
   const steps = result ? result.steps : [];
   const last = steps.length - 1;
@@ -32,12 +34,14 @@ export default function App() {
     setResult(r);
     setK(mode === 'result' ? r.steps.length - 1 : 0);
     setPlaying(false);
+    setCompare(false);
   }
 
   function backToInput() {
     setResult(null);
     setData(null);
     setPlaying(false);
+    setCompare(false);
   }
 
   const go = (to) => setK(Math.max(0, Math.min(last, to)));
@@ -63,7 +67,7 @@ export default function App() {
 
   // Phím mũi tên trái/phải để lùi/tới (khi không gõ trong ô nhập)
   useEffect(() => {
-    if (!result) return undefined;
+    if (!result || compare) return undefined;
     const onKey = (e) => {
       if (e.target.tagName === 'INPUT') return;
       if (e.key === 'ArrowRight') { e.preventDefault(); setK((v) => Math.min(last, v + 1)); }
@@ -71,7 +75,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [result, last]);
+  }, [result, last, compare]);
 
   return (
     <div className="app">
@@ -79,9 +83,13 @@ export default function App() {
 
       {scene === 'input' && <InputScene form={form} setForm={setForm} onStart={start} />}
       {scene === 'consider' && <ConsiderScene data={data} result={result} k={k} />}
-      {scene === 'checkout' && <CheckoutScene data={data} result={result} k={k} firstTrace={firstTrace} onRestart={backToInput} />}
+      {scene === 'checkout' && !compare && (
+        <CheckoutScene data={data} result={result} k={k} firstTrace={firstTrace} onRestart={backToInput}
+          onCompare={() => { setPlaying(false); setCompare(true); }} />
+      )}
+      {scene === 'checkout' && compare && <CompareScene data={data} result={result} onBack={() => setCompare(false)} />}
 
-      {scene !== 'input' && (
+      {scene !== 'input' && !compare && (
         <StepControls
           k={k}
           last={last}

@@ -220,3 +220,14 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 .dp-tip { position: fixed; z-index: 20; max-width: 380px; background: var(--ink); color: var(--paper); padding: 10px 12px; font-size: 13px; line-height: 1.5; box-shadow: 4px 4px 0 rgba(43, 29, 20, 0.35); pointer-events: none; }
 .dp-tip b { font-family: var(--font-num); color: var(--gold); display: block; margin-bottom: 2px; }
 .dp-tip[hidden] { display: none; }
+
+/* ===== Màn hình so sánh top-down ===== */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.stat { background: var(--card); border: 1.5px solid var(--ink); padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.stat b { font-family: var(--font-num); font-size: 28px; }
+.dp td.td-done { background: #EEF3E6; }
+.dp td.td-none { background: #F7F0DF; color: #B8A98C; }
+.dp td.td-wait { background: var(--card); box-shadow: inset 0 0 0 2px var(--ink); outline: 1px dashed var(--ink); outline-offset: -5px; }
+.dp td.td-call { background: var(--card); font-weight: 700; box-shadow: inset 0 0 0 3px var(--ink); }
+.dp td.td-reuse { background: #F6E2A8; font-weight: 700; box-shadow: inset 0 0 0 3px #8C6224; }
+.callstack { margin: 0; padding-left: 0; list-style: none; font-family: var(--font-num); display: flex; flex-direction: column; gap: 4px; max-height: 240px; overflow: auto; }
